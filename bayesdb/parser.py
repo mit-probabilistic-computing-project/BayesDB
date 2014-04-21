@@ -510,7 +510,7 @@ class Parser(object):
           (?P<btable>[^\s]+)\s*$
         """, orig, flags=re.VERBOSE|re.IGNORECASE)
         if not match:
-            if words[0] == 'show':
+            if words[0] == 'show' and words[1] == 'row':
                 return 'help', self.help_show_row_lists()
         else:
             tablename = match.group('btable')
@@ -525,7 +525,7 @@ class Parser(object):
           (?P<btable>[^\s]+)\s*$
         """, orig, flags=re.VERBOSE|re.IGNORECASE)
         if not match:
-            if words[0] == 'show':
+            if words[0] == 'show' and words[1] == 'column':
                 return 'help', self.help_show_column_lists()
         else:
             tablename = match.group('btable')
@@ -542,7 +542,7 @@ class Parser(object):
           (?P<btable>[^\s]+)\s*$
         """, orig, flags= re.VERBOSE | re.IGNORECASE)
         if not match:
-            if words[0] == 'show':
+            if words[0] == 'show' and words[1] == 'columns':
                 return 'help', self.help_show_columns()
         else:
             tablename = match.group('btable')
@@ -667,8 +667,100 @@ class Parser(object):
                    column_list=column_list, components_name=components_name, threshold=threshold, modelids=modelids), \
               dict(filename=filename)
 
+    def help_label_columns(self):
+        return "LABEL COLUMNS FOR <btable> [SET <column1>=value1[,...] | FROM <filename.csv>]: "
 
-            
+    def parse_label_columns(self, words, orig):
+        match = re.search(r"""
+            label\s+columns\s+for\s+
+            (?P<btable>[^\s]+)\s+
+            (set|from)\s+
+            (?P<mappings>[^;]*);?
+        """, orig, re.VERBOSE | re.IGNORECASE)
+        if match is None:
+            if words[0] == 'label':
+                return 'help', self.help_label_columns()
+        else:
+            tablename = match.group('btable').strip()
+            mapping_string = match.group('mappings').strip()
+
+            csv_path, mappings = None, None
+            if words[4] == 'from':
+                source = 'file'
+                csv_path = mapping_string
+            elif words[4] == 'set':
+                source = 'inline'
+                mappings = dict()
+                for mapping in mapping_string.split(','):
+                    vals = mapping.split('=')
+                    column, label = vals[0].strip(), vals[1].strip()
+                    mappings[column.strip()] = label
+            return 'label_columns', dict(tablename=tablename, mappings=mappings), dict(source=source, csv_path=csv_path)
+
+    def help_show_labels(self):
+        return "SHOW LABELS FOR <btable> [<column1>[, <column2>..]]: "
+
+    def parse_show_labels(self, words, orig):
+        match = re.search(r"""
+            show\s+labels\s+for\s+
+            (?P<btable>[^\s]+)
+            \s*(?P<columns>[^;]*);?
+        """, orig, re.VERBOSE | re.IGNORECASE)
+        if match is None:
+            if words[0] == 'show' and words[1] == 'labels':
+                return 'help', self.help_show_columns()
+        else:
+            tablename = match.group('btable').strip()
+            columnstring = match.group('columns').strip()
+            return 'show_labels', dict(tablename=tablename, columnstring=columnstring), None
+
+    def help_update_metadata(self):
+        return "UPDATE METADATA FOR <btable> [SET <metadata-key1>=value1[,...] | FROM <filename.csv>]: "
+
+    def parse_update_metadata(self, words, orig):
+        match = re.search(r"""
+            update\s+metadata\s+for\s+
+            (?P<btable>[^\s]+)\s+
+            (set|from)\s+
+            (?P<mappings>[^;]*);?
+        """, orig, re.VERBOSE | re.IGNORECASE)
+        if match is None:
+            if words[0] == 'update' and words[1] == 'metadata':
+                return 'help', self.help_update_metadata()
+        else:
+            tablename = match.group('btable').strip()
+            mapping_string = match.group('mappings').strip()
+
+            csv_path, mappings = None, None
+            if words[4] == 'from':
+                source = 'file'
+                csv_path = mapping_string
+            elif words[4] == 'set':
+                source = 'inline'
+                mappings = dict()
+                for mapping in mapping_string.split(','):
+                    vals = mapping.split('=')
+                    column, label = vals[0].strip(), vals[1].strip()
+                    mappings[column.strip()] = label
+            return 'update_metadata', dict(tablename=tablename, mappings=mappings), dict(source=source, csv_path=csv_path)
+
+    def help_show_metadata(self):
+        return "SHOW METADATA FOR <btable> [<metadata-key1> [, <metadata-key2>...]]"
+
+    def parse_show_metadata(self, words, orig):
+        match = re.search(r"""
+            show\s+metadata\s+for\s+
+            (?P<btable>[^\s]+)
+            \s*(?P<keystring>[^;]*);?
+        """, orig, re.VERBOSE | re.IGNORECASE)
+        if match is None:
+            if words[0] == 'show' and words[1] == 'metadata':
+                return 'help', self.help_show_metadata()
+        else:
+            tablename = match.group('btable').strip()
+            keystring = match.group('keystring').strip()
+            return 'show_metadata', dict(tablename=tablename, keystring=keystring), None
+
     def help_update_schema(self):
         return "UPDATE SCHEMA FOR <btable> SET [<column_name>=(numerical|categorical|key|ignore)[,...]]: must be done before creating models or analyzing."
         
@@ -679,7 +771,7 @@ class Parser(object):
             set\s+(?P<mappings>[^;]*);?
         """, orig, re.VERBOSE | re.IGNORECASE)
         if match is None:
-            if words[0] == 'update':
+            if words[0] == 'update' and words[1] == 'schema':
                 return 'help', self.help_update_schema()
         else:
             tablename = match.group('btable').strip()
